@@ -10,7 +10,7 @@ github_address = 'https://github.com/hit-mc/psmb-client'
 
 setup(
     name='psmb-client',
-    version='0.0.1',
+    version='0.0.2',
     description='psmb client implemented in Python',
     long_description=long_description,
     long_description_content_type='text/markdown',
@@ -20,7 +20,7 @@ setup(
     classifiers=[
         'Development Status :: 2 - Pre-Alpha',
         'Intended Audience :: Developers',
-        'License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3+)',
+        'License :: OSI Approved :: Apache Software License',
         'Natural Language :: Chinese (Simplified)',
         'Natural Language :: English',
         'Operating System :: MacOS',
