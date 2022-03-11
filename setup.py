@@ -10,7 +10,7 @@ github_address = 'https://github.com/hit-mc/psmb-client'
 
 setup(
     name='psmb-client',
-    version='0.0.2',
+    version='0.0.3',
     description='psmb client implemented in Python',
     long_description=long_description,
     long_description_content_type='text/markdown',
@@ -34,7 +34,7 @@ setup(
         'Topic :: Utilities',
     ],
     keywords='Chattings, PSMB, Minecraft, BungeeCross, CrossLink',
-    package_dir={'pypsmb': 'pypsmb'},
+    package_dir={'psmb_client': 'psmb_client'},
     packages=find_packages('.'),
     python_requires='>=3.8, <4',
     install_requires=[],
