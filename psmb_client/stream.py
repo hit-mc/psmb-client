@@ -2,12 +2,12 @@ import asyncio
 from typing import Any, Awaitable, Callable
 from .base_protocol import SubscriberOptions
 
+
 class EasyWriter:
 
     async def _write(self, data: bytes):
         self._writer: asyncio.StreamWriter
         self._writer.write(data)
-
 
 
 class Handshaker(EasyWriter):
@@ -34,7 +34,14 @@ class Handshaker(EasyWriter):
 
 
 class Subscriber(Handshaker):
-    def __init__(self, host: str | None, port: int | str, id_pattern: str, subscriber_id: int | None, *handlers: Callable[[bytes], Awaitable[Any]], keep_alive: float = 20, **kwargs) -> None:
+    def __init__(self,
+                 host: str | None,
+                 port: int | str,
+                 id_pattern: str,
+                 subscriber_id: int | None,
+                 *handlers: Callable[[bytes], Awaitable[Any]],
+                 keep_alive: float = 20,
+                 **kwargs) -> None:
         super().__init__(host, port, **kwargs)
         self._id_pattern = id_pattern
         self._subscriber_id = subscriber_id
@@ -52,10 +59,10 @@ class Subscriber(Handshaker):
             except asyncio.IncompleteReadError:
                 return
             if cmd == b'MSG':
-               data_length = int.from_bytes(await self._reader.readexactly(n=8), 'big')
-               msg = await self._reader.readexactly(data_length)
-               handlers_coro = [x(msg) for x in self._handlers]
-               await asyncio.gather(*handlers_coro)
+                data_length = int.from_bytes(await self._reader.readexactly(n=8), 'big')
+                msg = await self._reader.readexactly(data_length)
+                handlers_coro = [x(msg) for x in self._handlers]
+                await asyncio.gather(*handlers_coro)
             elif cmd == b'NOP':
                 await self._write(b'NIL')
             elif cmd == b'BYE':
@@ -82,9 +89,15 @@ class Subscriber(Handshaker):
             raise IOError(str(ack[:-1], encoding='UTF-8'))
         self._task = asyncio.create_task(self._sub())
 
+
 class Publisher(Handshaker):
 
-    def __init__(self, host: str | None, port: int | str, topic: str, keep_alive: float = 20, nop_interval: int = 15, **kwargs) -> None:
+    def __init__(self,
+                 host: str | None,
+                 port: int | str,
+                 topic: str,
+                 keep_alive: float = 20,
+                 nop_interval: float = 15, **kwargs) -> None:
         super().__init__(host, port, **kwargs)
         self._topic = topic
         self._nop_interval = nop_interval
@@ -102,12 +115,10 @@ class Publisher(Handshaker):
             except asyncio.TimeoutError:
                 await self.close(say_bye=False)
                 return
-            
-
 
     async def open_connection(self):
         await self._handshake()
-        
+
         await self._write(b'PUB')
         await self._write(self._topic.encode(encoding='UTF-8'))
         await self._write(b'\0')
@@ -134,5 +145,28 @@ class Publisher(Handshaker):
 
         await self._write(msg)
 
+
 class Client:
-    pass
+
+    def __init__(self,
+                 host: str | None,
+                 port: str | int,
+                 topic: str,
+                 client_id: int,
+                 *handlers: Callable[[bytes], Awaitable],
+                 keep_alive: float = 20,
+                 nop_interval: float = 15,
+                 **kwargs) -> None:
+        self._publisher = Publisher(host, port, topic, keep_alive, nop_interval, **kwargs)
+        self._subscriber = Subscriber(host, port, topic, client_id, *handlers, keep_alive=keep_alive, **kwargs)
+
+    async def establish(self):
+        await asyncio.gather(self._publisher.open_connection(), self._subscriber.open_connection())
+
+    async def send_msg(self, msg: bytes):
+        await self._publisher.send_msg(msg)
+
+    async def close(self):
+        await self._publisher.close()
+        await self._subscriber.close()
+
