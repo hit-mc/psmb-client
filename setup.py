@@ -10,7 +10,7 @@ github_address = 'https://github.com/hit-mc/psmb-client'
 
 setup(
     name='psmb-client',
-    version='0.0.5',
+    version='0.1.0',
     description='psmb client implemented in Python',
     long_description=long_description,
     long_description_content_type='text/markdown',
@@ -37,7 +37,7 @@ setup(
     package_dir={'psmb_client': 'psmb_client'},
     packages=find_packages('.'),
     python_requires='>=3.8, <4',
-    install_requires=[],
+    install_requires=['loguru'],
     project_urls={
         'Bug Reports': github_address + '/issues',
         'Source': github_address,

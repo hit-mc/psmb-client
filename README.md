@@ -1,6 +1,31 @@
 # 重置版本的Asyncio PSMB Client
 
 
+## 带自动重连的守护客户端
+
+```python
+from psmb_client.guardian import Guardian
+import asyncio
+
+host = '127.0.0.1'
+port = 13880
+topic = '123123123'
+client_id = 1
+
+async def handler(msg: bytes):
+    print(str(msg, encoding='UTF-8'))
+
+guard = Guardian(host, port, topic, client_id, handler)
+
+async def main():
+    guard.try_connect()
+    for _ in range(100):
+        await guard.send_msg(b"hahaha")
+        await asyncio.sleep(10)
+    
+asyncio.run(main())
+```
+
 ## 使用高级抽象的Client
 
 ```python
