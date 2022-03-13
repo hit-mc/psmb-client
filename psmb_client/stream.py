@@ -34,6 +34,9 @@ class Handshaker(EasyWriter):
             raise IOError("Network unavailable")
         await reader.readexactly(n=4)  # Option int
         # handshake finished
+    
+    def available(self):
+        return not self._writer.transport.is_closing()
 
 
 class Subscriber(Handshaker):
@@ -66,8 +69,11 @@ class Subscriber(Handshaker):
             except asyncio.IncompleteReadError:
                 await self.close()
                 return
+            except asyncio.CancelledError:
+                await self.close()
+                return
             except BaseException as e:
-                logger.warning("Uncaught exception {}", str(e))
+                logger.warning(f"Uncaught exception {e!r}")
                 await self.close()
                 return
             if cmd == b'MSG':
@@ -88,7 +94,7 @@ class Subscriber(Handshaker):
         except asyncio.TimeoutError:
             logger.warning("Subscriber's Write stream close timeout")
         except BaseException as e:
-            logger.warning("Uncaught exception {}", str(e))
+            logger.warning(f"Uncaught exception {e!r}")
         finally:
             if self._close_callback is not None:
                 await self._close_callback()
@@ -145,7 +151,7 @@ class Publisher(Handshaker):
                 await self.close(say_bye=False)
                 return
             except BaseException as e:
-                logger.warning("Uncaught exception {}", str(e))
+                logger.warning(f"Uncaught exception {e!r}")
                 await self.close(say_bye=False)
                 return
 
@@ -172,12 +178,12 @@ class Publisher(Handshaker):
         except OSError:
             pass
         except BaseException as e:
-            logger.warning("Uncaught exception {}", e)
+            logger.warning(f"Uncaught exception {e!r}")
         if self._close_callback is not None:
             await self._close_callback()
 
     async def send_msg(self, msg: bytes):
-        if self._writer.is_closing():
+        if not self.available():
             raise IOError("Writer closing")
 
         await self._write(b'MSG')
