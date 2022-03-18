@@ -21,13 +21,16 @@ class Guardian:
             return
         logger.error("Connectiin lost, trying to reconnect in ")
         await asyncio.sleep(self._reconnect_wait)
-        self.try_connect()
+        await self._retry_connect()
 
-    async def _try_connect(self):
+    async def _retry_connect(self):
         try:
             await self.client.close()
         except Exception as e:
             logger.exception(f"{e!r}")
+        await self._try_connect()
+
+    async def _try_connect(self):
         for i in count():
             logger.info("[{}] trying to open psmb connection to {}:{}.",
                 i + 1, str(self.host), str(self.port))
