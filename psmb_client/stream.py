@@ -186,7 +186,7 @@ class Subscriber(BaseReader, NopSender):
         if ack != b'OK\0':
             raise IOError(str(ack[:-1], encoding=ENCODING))
         self._start_read()
-        # self._start_nop()
+        self._start_nop()
 
 
 class Publisher(BaseReader, NopSender):
@@ -207,7 +207,7 @@ class Publisher(BaseReader, NopSender):
         ack = await self._reader.readuntil(b'\0')
         if ack != b'OK\0':
             raise IOError(str(ack[:-1], encoding=ENCODING))
-        # self._start_nop()
+        self._start_nop()
         self._start_read()
 
     async def send_msg(self, msg: bytes):
