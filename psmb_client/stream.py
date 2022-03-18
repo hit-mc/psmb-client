@@ -42,6 +42,7 @@ class Handshaker(EasyWriter):
         self._port = port
         self._close_callback = close_callback
 
+
     async def _handshake(self):
         reader, writer = await asyncio.open_connection(self._host, self._port)
         self._reader = reader
@@ -58,22 +59,24 @@ class Handshaker(EasyWriter):
     def available(self):
         return not self._writer.transport.is_closing()
 
-    async def close(self):
+    async def close(self, lock_callback: bool = False):
         try:
             await self._write(b'BYE')
             self._writer.write_eof()
             self._writer.close()
             await self._writer.wait_closed()
-            if self._close_callback is not None:
-                await self._close_callback()
+            
         except RuntimeError:
             pass # 可能关闭两次
         except asyncio.CancelledError:
             pass
         except OSError as e:
-            logger.error(f"Connection lost due to server down? Exception: {e!r}")
+            pass
         except Exception as e:
             logger.exception(f"{e!r}")
+        finally:
+            if self._close_callback is not None and not lock_callback:
+                await self._close_callback()
 
 
 class NopSender(Handshaker):
@@ -97,9 +100,9 @@ class NopSender(Handshaker):
                 await self.close()
                 return
 
-    async def close(self):
+    async def close(self, *args, **kwargs):
         self._nop_task.cancel()
-        await super().close()
+        await super().close(*args, **kwargs)
 
     def _start_nop(self):
         self._nop_task = asyncio.create_task(self._nop())
@@ -143,9 +146,9 @@ class BaseReader(Handshaker):
     def _start_read(self):
         self._read_task = asyncio.create_task(self._read())
 
-    async def close(self):
+    async def close(self, *args, **kwargs):
         self._read_task.cancel()
-        await super().close()
+        await super().close(*args, **kwargs)
 
 
 class Subscriber(BaseReader, NopSender):
@@ -254,6 +257,6 @@ class Client:
     async def send_msg(self, msg: bytes):
         await self._publisher.send_msg(msg)
 
-    async def close(self):
-        await self._publisher.close()
-        await self._subscriber.close()
+    async def close(self, lock_callback: bool = False):
+        await self._publisher.close(lock_callback)
+        await self._subscriber.close(lock_callback)

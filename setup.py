@@ -10,7 +10,7 @@ github_address = 'https://github.com/hit-mc/psmb-client'
 
 setup(
     name='psmb-client',
-    version='0.3.2rc2',
+    version='0.3.2',
     description='psmb client implemented in Python',
     long_description=long_description,
     long_description_content_type='text/markdown',

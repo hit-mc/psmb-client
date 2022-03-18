@@ -23,15 +23,16 @@ class Guardian:
     async def close_callback(self):
         if self.closing:
             return
-        logger.error("Connectiin lost, trying to reconnect in ")
-        await asyncio.sleep(self._reconnect_wait)
-        await self._retry_connect()
+        logger.error("Connection lost, trying to reconnect in {}s.", self._reconnect_wait)
+        if self.task is None or self.task.done() or self.task.cancelled():
+            self.task = asyncio.create_task(self._retry_connect())
 
     async def _retry_connect(self):
         try:
-            await self.client.close()
+            await self.client.close(lock_callback=True)
         except Exception as e:
             logger.exception(f"{e!r}")
+        await asyncio.sleep(self._reconnect_wait)
         await self._try_connect()
 
     async def _try_connect(self):
