@@ -7,10 +7,14 @@ from psmb_client.stream import Client
 from loguru import logger
 import threading
 
+CONTENT_ENCODING = 'UTF-8'
+
+
 class Guardian:
     def __init__(self, host, port, topic, client_id, *handlers: Callable[[bytes], Awaitable], reconnect_wait: float = 10) -> None:
         self.task: asyncio.Task | None = None
-        self.client = Client(host, port, topic, client_id, *handlers, close_callback=self.close_callback)
+        self.client = Client(host, port, topic, client_id,
+                             *handlers, close_callback=self.close_callback)
         self.host = host
         self.port = port
         self.closing = False
@@ -33,7 +37,7 @@ class Guardian:
     async def _try_connect(self):
         for i in count():
             logger.info("[{}] trying to open psmb connection to {}:{}.",
-                i + 1, str(self.host), str(self.port))
+                        i + 1, str(self.host), str(self.port))
             try:
                 await self.client.establish()
             except Exception as e:
@@ -49,7 +53,7 @@ class Guardian:
             return
         if self.task is None or self.task.done() or self.task.cancelled():
             self.task = asyncio.create_task(self._try_connect())
-        
+
     async def send_msg(self, msg: bytes):
         if self.closing:
             raise RuntimeError("Guardian closing (or closed).")
@@ -58,9 +62,9 @@ class Guardian:
         try:
             await self.client.send_msg(msg)
         except Exception as e:
-            logger.warning(f"Cannot send msg {str(msg, encoding='UTF-8')}: {e!r}, trying to establish connection.", )
+            logger.warning(
+                f"Cannot send msg {str(msg, encoding=CONTENT_ENCODING)}: {e!r}, trying to establish connection.", )
             self.try_connect()
-
 
     async def close(self):
         self.closing = True
@@ -85,7 +89,7 @@ class SyncGuardian(Guardian, threading.Thread):
         logger.info("Sync guardian calling back for connection establishment")
         if self.callback is not None:
             self.loop.call_soon_threadsafe(self.callback)
-    
+
     def run(self):
         asyncio.set_event_loop(self.loop)
         self.task = self.loop.create_task(self._try_connect())
@@ -94,10 +98,9 @@ class SyncGuardian(Guardian, threading.Thread):
         finally:
             self.loop.close()
 
-    
     def send_msg(self, msg: bytes | str, timeout: float):
         if isinstance(msg, str):
-            msg = msg.encode('utf-8')
+            msg = msg.encode(CONTENT_ENCODING)
         ft = asyncio.run_coroutine_threadsafe(super().send_msg(msg), self.loop)
         try:
             ft.result(timeout)
@@ -106,7 +109,7 @@ class SyncGuardian(Guardian, threading.Thread):
             ft.cancel()
         except Exception as exc:
             logger.warning(f'The coroutine raised an exception: {exc!r}')
-        
+
     def close(self, timeout):
         logger.info("attempting to actively close the connection")
         ft = asyncio.run_coroutine_threadsafe(super().close(), self.loop)
