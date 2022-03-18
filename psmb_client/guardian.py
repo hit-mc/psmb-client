@@ -8,29 +8,34 @@ from loguru import logger
 import threading
 
 class Guardian:
-    def __init__(self, host, port, topic, client_id, *handlers: Callable[[bytes], Awaitable]) -> None:
+    def __init__(self, host, port, topic, client_id, *handlers: Callable[[bytes], Awaitable], reconnect_wait: float = 10) -> None:
         self.task: asyncio.Task | None = None
         self.client = Client(host, port, topic, client_id, *handlers, close_callback=self.close_callback)
         self.host = host
         self.port = port
         self.closing = False
+        self._reconnect_wait = reconnect_wait
 
     async def close_callback(self):
         if self.closing:
             return
-        logger.error("Connectiin lost, trying to reconnect.")
+        logger.error("Connectiin lost, trying to reconnect in ")
+        await asyncio.sleep(self._reconnect_wait)
         self.try_connect()
 
     async def _try_connect(self):
-        
+        try:
+            await self.client.close()
+        except Exception as e:
+            logger.exception(f"{e!r}")
         for i in count():
-            logger.info("[{}] trying to open psmb connection to ({}, {}).",
+            logger.info("[{}] trying to open psmb connection to {}:{}.",
                 i + 1, str(self.host), str(self.port))
             try:
                 await self.client.establish()
-            except BaseException as e:
-                logger.warning("Connection failed: {}", str(e))
-                await asyncio.sleep(10)
+            except Exception as e:
+                logger.warning(f"Connection failed: {e!r}")
+                await asyncio.sleep(self._reconnect_wait)
                 continue
             logger.info("Connection established")
             break
@@ -49,8 +54,8 @@ class Guardian:
             await self.task
         try:
             await self.client.send_msg(msg)
-        except BaseException as e:
-            logger.info(f"Cannot send msg {str(msg, encoding='UTF-8')}: {e!r}, trying to establish connection.", )
+        except Exception as e:
+            logger.warning(f"Cannot send msg {str(msg, encoding='UTF-8')}: {e!r}, trying to establish connection.", )
             self.try_connect()
 
 
@@ -60,8 +65,8 @@ class Guardian:
         if self.task is not None and not self.task.done():
             try:
                 self.task.cancel()
-            except BaseException as e:
-                logger.info(f"Uncaught exception {e!r}")
+            except Exception as e:
+                logger.exception(f"{e!r}")
 
 
 class SyncGuardian(Guardian, threading.Thread):
